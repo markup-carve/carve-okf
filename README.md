@@ -111,7 +111,3 @@ Portability is reported from two complementary, engine-backed sources:
 - Diagram fences (`mermaid`, `graphviz`, `d2`, ...) pass through as code fences
   and are reported: a plain-Markdown OKF consumer shows their source rather than
   a rendered diagram.
-
-## License
-
-MIT
