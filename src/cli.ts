@@ -18,6 +18,7 @@ Export options:
   --strict                  Degrade non-portable constructs to text
   --default-type <type>     OKF type injected when a source has none (default: document)
   --no-assets               Do not copy referenced local images
+  --report json             Emit the export report as JSON on stdout
 
 Import options:
   --include-reserved        Also import index.md and log.md
@@ -33,6 +34,7 @@ function runExport(argv: string[]): void {
   const positional: string[] = [];
   const opts: ExportOptions = {};
   let quiet = false;
+  let json = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--strict') opts.strict = true;
@@ -40,6 +42,7 @@ function runExport(argv: string[]): void {
     else if (a === '--quiet') quiet = true;
     else if (a === '--mode') opts.mode = argv[++i] as OkfProfileMode;
     else if (a === '--default-type') opts.defaultType = argv[++i];
+    else if (a === '--report') json = argv[++i] === 'json';
     else positional.push(a);
   }
   if (!positional[0] || !positional[1]) {
@@ -54,12 +57,16 @@ function runExport(argv: string[]): void {
   }
 
   const report = exportBundle(positional[0], positional[1], opts);
+  if (json) {
+    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+    return;
+  }
   if (quiet) return;
   w('=== carve-okf export report ===');
   for (const c of report.concepts) {
     const injected = c.typeInjected ? ' [type injected]' : '';
     w(`\n[${c.file}] -> ${c.slug}.md  (front matter: ${c.frontMatterFormat}; type: ${c.type}${injected})`);
-    if (!c.violations.length && !c.losses.length && !c.unresolvedLinks.length && !c.assetsMissing.length) {
+    if (!c.violations.length && !c.losses.length && !c.unresolvedLinks.length && !c.assetsMissing.length && !c.diagrams.length) {
       w('  portable: no non-portable constructs');
     }
     for (const v of c.violations) w(`  - not portable: ${formatProfileViolation(v)}`);
@@ -67,6 +74,7 @@ function runExport(argv: string[]): void {
     for (const href of c.unresolvedLinks) w(`  - unresolved internal link: ${href}`);
     for (const m of c.assetsMissing) w(`  - missing asset: ${m}`);
     for (const a of c.assetsCopied) w(`  - copied asset: ${a}`);
+    for (const d of c.diagrams) w(`  - diagram fence (${d.lang}, line ${d.line}): a plain-Markdown consumer shows the source`);
   }
   w(`\nWrote ${report.concepts.length} concept file(s) + index.md + log.md${report.logIsStub ? ' (log is a stub)' : ''} to ${positional[1]}/`);
 }

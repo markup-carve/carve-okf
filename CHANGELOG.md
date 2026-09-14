@@ -7,6 +7,13 @@ All notable changes to this project are documented here.
 - Initial release: export a directory of Carve `.crv` documents to an Open
   Knowledge Format bundle (concept `.md` files with YAML front matter,
   `index.md`, git-derived `log.md`).
+- Nested input directories are walked recursively and their structure is
+  preserved in the bundle (and on import back to Carve).
+- A heading cross-reference resolves to the bundle file that defines the
+  heading (`[id](/other.md#id)`), falling back to a same-document anchor.
+- Diagram fences (`mermaid`, `graphviz`, `d2`, ...) are detected and reported
+  as source that a plain-Markdown consumer will not render.
+- `carve-okf export --report json` emits the full export report as JSON.
 - Reverse import: `carve-okf import` converts an OKF bundle back to Carve
   `.crv` documents, migrating each Markdown body through the engine's own
   Markdown importer and reporting import fidelity.

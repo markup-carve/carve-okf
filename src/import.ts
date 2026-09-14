@@ -1,9 +1,10 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, join, posix } from 'node:path';
 import yaml from 'js-yaml';
 import { migrateMarkdown, type MigrationDiagnostic } from '@markup-carve/carve';
 import { splitFrontMatter } from './frontmatter.js';
 import { rewriteLinksToCarve } from './links.js';
+import { listMdFiles } from './files.js';
 
 /** OKF-reserved bundle files that are generated, not authored. */
 export const RESERVED_FILES = new Set(['index.md', 'log.md']);
@@ -33,31 +34,32 @@ function carveFrontMatter(meta: Record<string, unknown>): string {
 
 /**
  * Import an OKF bundle back into Carve `.crv` documents (the inverse of
- * {@link exportBundle}).
+ * {@link exportBundle}), preserving the bundle's directory structure.
  *
  * Each concept's Markdown body is migrated to Carve via the engine's own
  * Markdown importer (CommonMark + GFM), its front matter is re-emitted as a
- * Carve front-matter block, and `/foo.md` links are rewritten to `foo.crv`.
- * The reserved `index.md` and `log.md` are skipped unless `includeReserved`.
+ * Carve front-matter block, and `.md` links are rewritten to `.crv`. The
+ * reserved `index.md` and `log.md` are skipped unless `includeReserved`.
  */
 export function importBundle(okfDir: string, outDir: string, opts: ImportOptions = {}): ImportReport {
   mkdirSync(outDir, { recursive: true });
-  const all = readdirSync(okfDir)
-    .filter((f) => f.endsWith('.md'))
-    .sort();
+  const all = listMdFiles(okfDir);
   const files = opts.includeReserved ? all : all.filter((f) => !RESERVED_FILES.has(f));
-  const mdSlugs = new Set(files);
+  const mdPaths = new Set(files);
 
   const concepts: ImportedConcept[] = [];
   for (const file of files) {
-    const slug = basename(file, '.md');
+    const slug = file.slice(0, -'.md'.length);
+    const dir = posix.dirname(file) === '.' ? '' : posix.dirname(file);
     const src = readFileSync(join(okfDir, file), 'utf8');
     const { meta, body } = splitFrontMatter(src);
 
     const migrated = migrateMarkdown(body);
-    const linked = rewriteLinksToCarve(migrated.value, mdSlugs);
+    const linked = rewriteLinksToCarve(migrated.value, mdPaths, dir);
     const out = `${carveFrontMatter(meta)}${linked.markdown.trim()}\n`;
-    writeFileSync(join(outDir, `${slug}.crv`), out, 'utf8');
+    const outPath = join(outDir, `${slug}.crv`);
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, out, 'utf8');
 
     concepts.push({
       file,

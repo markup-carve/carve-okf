@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, join, posix } from 'node:path';
 import yaml from 'js-yaml';
 import type { ProfileViolation, RenderLoss } from '@markup-carve/carve';
 import { splitFrontMatter, type FrontMatterFormat } from './frontmatter.js';
@@ -7,6 +7,9 @@ import { renderBody } from './render.js';
 import { rewriteLinks } from './links.js';
 import { copyAssets, createAssetRegistry } from './assets.js';
 import { gitLog } from './log.js';
+import { listCrvFiles } from './files.js';
+import { headingIds, buildHeadingIndex } from './headings.js';
+import { findDiagramFences, type DiagramFence } from './diagrams.js';
 import type { OkfProfileMode } from './profile.js';
 
 export interface ExportOptions {
@@ -32,6 +35,8 @@ export interface ConceptReport {
   unresolvedLinks: string[];
   assetsCopied: string[];
   assetsMissing: string[];
+  /** Diagram fences that survive as source in plain-Markdown consumers. */
+  diagrams: DiagramFence[];
 }
 
 export interface ExportReport {
@@ -56,45 +61,60 @@ function renderFrontMatter(fm: Record<string, unknown>): string {
   return `---\n${yaml.dump(fm, { lineWidth: -1 }).trimEnd()}\n---\n`;
 }
 
-/** Export a directory of `.crv` files into an OKF bundle at `outDir`. */
+interface Parsed {
+  file: string;
+  slug: string;
+  dir: string;
+  meta: Record<string, unknown>;
+  format: FrontMatterFormat;
+  body: string;
+}
+
+/** Export a directory tree of `.crv` files into an OKF bundle at `outDir`. */
 export function exportBundle(inDir: string, outDir: string, opts: ExportOptions = {}): ExportReport {
   const defaultType = opts.defaultType ?? 'document';
   const withAssets = opts.assets ?? true;
   mkdirSync(outDir, { recursive: true });
 
-  const files = readdirSync(inDir)
-    .filter((f) => f.endsWith('.crv'))
-    .sort();
-  const crvToSlug = new Map(files.map((f) => [f, basename(f, '.crv')]));
-  const assetRegistry = createAssetRegistry();
-
-  const concepts: ConceptReport[] = [];
-  for (const file of files) {
-    const slug = basename(file, '.crv');
+  // Pass 1: parse every file and index slugs + heading anchors bundle-wide.
+  const files = listCrvFiles(inDir);
+  const parsed: Parsed[] = files.map((file) => {
+    const slug = file.slice(0, -'.crv'.length);
     const src = readFileSync(join(inDir, file), 'utf8');
     const { meta, format, body } = splitFrontMatter(src);
+    return { file, slug, dir: posix.dirname(file) === '.' ? '' : posix.dirname(file), meta, format, body };
+  });
+  const crvToSlug = new Map(parsed.map((p) => [p.file, p.slug]));
+  const headingIndex = buildHeadingIndex(parsed.map((p) => ({ slug: p.slug, ids: headingIds(p.body) })));
+  const assetRegistry = createAssetRegistry();
 
-    const rendered = renderBody(body, { mode: opts.mode, strict: opts.strict });
-    const linked = rewriteLinks(rendered.markdown, crvToSlug);
+  // Pass 2: render, rewrite links, copy assets, write output preserving structure.
+  const concepts: ConceptReport[] = [];
+  for (const p of parsed) {
+    const rendered = renderBody(p.body, { mode: opts.mode, strict: opts.strict });
+    const linked = rewriteLinks(rendered.markdown, { dir: p.dir, crvToSlug, headingIndex, slug: p.slug });
     const asset = withAssets
-      ? copyAssets(linked.markdown, inDir, outDir, assetRegistry)
+      ? copyAssets(linked.markdown, join(inDir, p.dir), outDir, assetRegistry)
       : { markdown: linked.markdown, copied: [], missing: [] };
 
-    const { fm, injected } = conceptFrontMatter(meta, defaultType);
+    const { fm, injected } = conceptFrontMatter(p.meta, defaultType);
     const out = `${renderFrontMatter(fm)}\n${asset.markdown.trimEnd()}\n`;
-    writeFileSync(join(outDir, `${slug}.md`), out, 'utf8');
+    const outPath = join(outDir, `${p.slug}.md`);
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, out, 'utf8');
 
     concepts.push({
-      file,
-      slug,
+      file: p.file,
+      slug: p.slug,
       type: String(fm.type),
       typeInjected: injected,
-      frontMatterFormat: format,
+      frontMatterFormat: p.format,
       violations: rendered.violations,
       losses: rendered.losses,
       unresolvedLinks: linked.unresolved,
       assetsCopied: asset.copied,
       assetsMissing: asset.missing,
+      diagrams: findDiagramFences(asset.markdown),
     });
   }
 
