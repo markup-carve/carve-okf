@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, posix } from 'node:path';
 import { splitFrontMatter } from './frontmatter.js';
 import { RESERVED_FILES } from './import.js';
+import { listMdFiles } from './files.js';
 
 export type IssueSeverity = 'error' | 'warning';
 
@@ -19,26 +20,26 @@ export interface ValidationReport {
   ok: boolean;
 }
 
-// A Markdown link/image destination pointing at a bundle `.md` file.
-const MD_LINK_RE = /!?\]\((\.?\/)?([^)\s/]+?\.md)(#[^)\s"]*)?(\s+"[^"]*")?\)/g;
+// A Markdown link/image destination pointing at a bundle `.md` file (rooted,
+// bare, dot-relative, or nested).
+const MD_LINK_RE = /!?\]\((\/?)([^)\s"#]+?\.md)(#[^)\s"]*)?(\s+"[^"]*")?\)/g;
 
 function isReserved(file: string): boolean {
   return RESERVED_FILES.has(file);
 }
 
 /**
- * Validate an OKF bundle directory.
+ * Validate an OKF bundle directory tree.
  *
- * Errors: a concept file missing the required `type` front-matter key; a
- * `.md` link that resolves to no file in the bundle. Warnings: a missing
- * reserved `index.md` / `log.md`. Reserved files are not required to carry a
- * `type` or to be link targets.
+ * Errors: a concept file missing the required `type` front-matter key; a `.md`
+ * link that resolves to no file in the bundle. Warnings: a missing reserved
+ * `index.md` / `log.md`. Reserved files are not required to carry a `type` or
+ * to be link targets. Nested directories are supported; a relative link is
+ * resolved against the referring file's directory.
  */
 export function validateBundle(okfDir: string): ValidationReport {
   const issues: ValidationIssue[] = [];
-  const files = readdirSync(okfDir)
-    .filter((f) => f.endsWith('.md'))
-    .sort();
+  const files = listMdFiles(okfDir);
   const present = new Set(files);
 
   for (const reserved of RESERVED_FILES) {
@@ -48,6 +49,7 @@ export function validateBundle(okfDir: string): ValidationReport {
   }
 
   for (const file of files) {
+    const dir = posix.dirname(file) === '.' ? '' : posix.dirname(file);
     const src = readFileSync(join(okfDir, file), 'utf8');
     const { meta, body } = splitFrontMatter(src);
 
@@ -56,9 +58,11 @@ export function validateBundle(okfDir: string): ValidationReport {
     }
 
     for (const m of body.matchAll(MD_LINK_RE)) {
-      const target = m[2];
+      const rooted = m[1];
+      const raw = m[2];
+      const target = rooted ? posix.normalize(raw) : posix.normalize(dir ? posix.join(dir, raw) : raw);
       if (!present.has(target)) {
-        issues.push({ severity: 'error', file, code: 'dangling-link', message: `link target ${target} is not in the bundle` });
+        issues.push({ severity: 'error', file, code: 'dangling-link', message: `link target ${raw} is not in the bundle` });
       }
     }
   }

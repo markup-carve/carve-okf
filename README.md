@@ -19,8 +19,14 @@ npm install -g @markup-carve/carve-okf
 ## CLI
 
 ```bash
-carve-okf <input-dir> <output-dir> [options]
+carve-okf export <input-dir> <output-dir> [options]   # Carve .crv -> OKF bundle
+carve-okf import <okf-dir>  <output-dir> [options]     # OKF bundle -> Carve .crv
+carve-okf validate <okf-dir>                           # check an OKF bundle
 ```
+
+The bare form `carve-okf <input-dir> <output-dir>` is an alias for `export`.
+
+Export options:
 
 | Option | Meaning |
 | --- | --- |
@@ -28,10 +34,13 @@ carve-okf <input-dir> <output-dir> [options]
 | `--strict` | Degrade non-portable constructs to text. Default keeps HTML fallbacks and still reports them. |
 | `--default-type <type>` | OKF `type` injected when a source has none (default `document`). |
 | `--no-assets` | Do not copy referenced local images into the bundle. |
+| `--report json` | Emit the full export report as JSON on stdout. |
 | `--quiet` | Suppress the per-file portability report. |
 
-Every `.crv` in the input directory becomes `<slug>.md` in the output directory,
-alongside a generated `index.md` and `log.md`.
+`import` takes `--include-reserved` to also import the generated `index.md` and
+`log.md`. Every `.crv` under the input directory becomes `<slug>.md` in the
+output, preserving subdirectory structure, alongside a generated `index.md` and
+`log.md`.
 
 ## Library
 
@@ -94,8 +103,14 @@ Portability is reported from two complementary, engine-backed sources:
 - Lenient mode's HTML fallbacks (`<mark>`, `<u>`, `<sup>`) are valid HTML in
   Markdown but will not survive an HTML-sanitizing consumer. Use `--strict` for a
   guaranteed-portable bundle.
-- Heading cross-references resolve to same-document anchors only; cross-file
-  anchor resolution is not implemented.
+- A heading cross-reference resolves to the bundle file that defines the heading
+  (`[id](/other.md#id)`), falling back to a same-document anchor when no file
+  defines it. Carve's heading anchors preserve case (`#Widget-Basics`), which a
+  consumer that auto-slugs to lower case may not match; a `</label>` reference by
+  heading text (rather than id) is not resolved.
+- Diagram fences (`mermaid`, `graphviz`, `d2`, ...) pass through as code fences
+  and are reported: a plain-Markdown OKF consumer shows their source rather than
+  a rendered diagram.
 
 ## License
 
