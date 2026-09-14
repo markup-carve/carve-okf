@@ -1,0 +1,19 @@
+---
+title: Widget Architecture
+description: How the widget engine fits together.
+tags:
+  - reference
+  - widgets
+type: reference
+---
+
+# Architecture
+
+The engine has three layers.[^layers] See the
+[getting started guide](getting-started.crv) for the basics.
+
+Cooling uses H{,2,}O and this is the 10{^th^} revision.
+
+The reference implementation is documented well.[^layers]
+
+[^layers]: Parser, scheduler, and renderer.

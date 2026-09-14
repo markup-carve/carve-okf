@@ -1,0 +1,21 @@
+---
+title: Getting Started with Widgets
+description: A short intro to the widget system.
+tags:
+  - guide
+  - widgets
+type: guide
+author: Mark Scherer
+lang: en
+---
+
+# Getting Started
+
+Widgets are the core building block. Read the [architecture overview](architecture.crv)
+before you begin.
+
+::: note
+Configuration is =case-sensitive=. Double-check your keys before you deploy.
+:::
+
+Widget names may be /italic/ and labels *bold*.

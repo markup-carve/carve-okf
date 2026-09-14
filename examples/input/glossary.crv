@@ -1,0 +1,15 @@
++++
+title = "Widget Glossary"
+description = "Key terms for the widget system."
+tags = ["reference", "glossary"]
++++
+
+# Glossary
+
+Terms used across the [getting started guide](getting-started.crv).
+
+:: Widget
+: A =reusable= unit of UI.
+
+:: Scheduler
+: Orders widget updates; see the _ordering rules_ chapter.

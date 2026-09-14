@@ -1,0 +1,17 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+
+# Keep the npm dist tarball lean: ship only dist/.
+/.github            export-ignore
+/examples           export-ignore
+/src                export-ignore
+/.gitignore         export-ignore
+/.gitattributes     export-ignore
+/.editorconfig      export-ignore
+/tsconfig.json      export-ignore
+/tsconfig.build.json export-ignore
+/vitest.config.ts   export-ignore
+/CHANGELOG.md       export-ignore
