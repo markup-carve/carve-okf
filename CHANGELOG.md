@@ -2,7 +2,9 @@
 
 All notable changes to this project are documented here.
 
-## [0.1.0]
+## [Unreleased]
+
+## [0.1.0] - 2026-09-20
 
 - Initial release: export a directory of Carve `.crv` documents to an Open
   Knowledge Format bundle (concept `.md` files with YAML front matter,
