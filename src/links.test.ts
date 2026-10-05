@@ -43,8 +43,26 @@ describe('rewriteLinks', () => {
       { slug: 'architecture', ids: ['Layers'] },
       { slug: 'getting-started', ids: [] },
     ]);
-    const r = rewriteLinks('see </#layers>', { dir: '', crvToSlug, headingIndex, slug: 'getting-started' });
+    const r = rewriteLinks('see </#Layers>', { dir: '', crvToSlug, headingIndex, slug: 'getting-started' });
     expect(r.markdown).toBe('see [Layers](/architecture.md#Layers)');
+  });
+
+  it('does not resolve a heading reference that differs from the id only in case', () => {
+    const headingIndex = buildHeadingIndex([
+      { slug: 'architecture', ids: ['Layers'] },
+      { slug: 'getting-started', ids: [] },
+    ]);
+    const r = rewriteLinks('see </#layers>', { dir: '', crvToSlug, headingIndex, slug: 'getting-started' });
+    expect(r.markdown).toBe('see [layers](#layers)');
+  });
+
+  it('keeps case-distinct ids in different files apart', () => {
+    const headingIndex = buildHeadingIndex([
+      { slug: 'architecture', ids: ['Layers'] },
+      { slug: 'glossary', ids: ['layers'] },
+    ]);
+    const r = rewriteLinks('see </#layers>', { dir: '', crvToSlug, headingIndex, slug: 'getting-started' });
+    expect(r.markdown).toBe('see [layers](/glossary.md#layers)');
   });
 
   it('downgrades an unresolved heading reference to a same-document anchor', () => {

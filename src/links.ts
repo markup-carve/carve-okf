@@ -52,7 +52,7 @@ export function rewriteLinks(markdown: string, ctx: LinkContext): LinkRewriteRes
     return whole;
   });
   out = out.replace(HEADING_REF_RE, (_whole, id: string) => {
-    const hit = ctx.headingIndex?.get(id.toLowerCase());
+    const hit = ctx.headingIndex?.get(id);
     if (hit && hit.slug !== ctx.slug) return `[${hit.id}](/${hit.slug}.md#${hit.id})`;
     return `[${id}](#${id})`;
   });
