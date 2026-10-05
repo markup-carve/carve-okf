@@ -19,9 +19,9 @@ export function headingIds(body: string): string[] {
 }
 
 /**
- * A bundle-wide index from a lower-cased heading id to the concept slug that
- * defines it. Carve resolves heading references case-insensitively, so the key
- * is lower-cased; the first definer wins on a collision.
+ * A bundle-wide index from a heading id to the concept slug that defines it.
+ * Carve compares heading references against ids exactly, so the key is the id
+ * as written; the first definer wins on a collision.
  */
 export type HeadingIndex = Map<string, { slug: string; id: string }>;
 
@@ -29,8 +29,7 @@ export function buildHeadingIndex(entries: { slug: string; ids: string[] }[]): H
   const index: HeadingIndex = new Map();
   for (const { slug, ids } of entries) {
     for (const id of ids) {
-      const key = id.toLowerCase();
-      if (!index.has(key)) index.set(key, { slug, id });
+      if (!index.has(id)) index.set(id, { slug, id });
     }
   }
   return index;
