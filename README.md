@@ -12,20 +12,18 @@ trip.
 
 ## Install
 
-There is no release on npm yet, so build it from a checkout:
-
 ```bash
-git clone https://github.com/markup-carve/carve-okf
-cd carve-okf
-npm ci
-npm run build
-npm link
+npm install -g @markup-carve/carve-okf
 ```
 
-`npm link` puts `carve-okf` on your PATH and makes the package resolvable by
-name for the library use below. Skip it and run the built entry point directly
-as `node dist/cli.js`. Taking the repository as a git dependency is not enough
-on its own: npm does not build it during install, so no command appears.
+Or run it without installing:
+
+```bash
+npx @markup-carve/carve-okf export docs/ bundle/
+```
+
+As a library, `npm install @markup-carve/carve-okf` and import from the package
+name. Requires Node.js 20 or newer.
 
 ## CLI
 
