@@ -14,8 +14,8 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, relative } from 'node:path';
 
-// Flip to true in the change that first publishes this package to npm.
-const PUBLISHED_TO_NPM = false;
+// True since 0.1.0, the release that first published this package to npm.
+const PUBLISHED_TO_NPM = true;
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
