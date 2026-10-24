@@ -74,17 +74,16 @@ Portability is reported from two complementary, engine-backed sources:
    Running it over a resolved document yields the structural violation list
    (admonition, highlight, sup/sub, definition list, ...), so the report tracks
    the engine's own vocabulary rather than a heuristic that drifts.
-2. The Markdown renderer's own **raw-format loss report**
-   (`raw-format-dropped`). The profile deliberately allows raw nodes - a raw
-   HTML block passes through Markdown fine - so a raw fence the renderer cannot
-   emit (e.g. `{=latex}`) would otherwise be dropped silently. Folding in the
-   loss report surfaces exactly those drops.
+2. The Markdown renderer's **loss report**. It records raw content the writer
+   drops (`raw-format-dropped`) and destinations it refuses
+   (`destination-denied`). The profile deliberately allows raw nodes, since a
+   raw HTML block passes through Markdown. The loss report catches a raw fence
+   the renderer cannot emit (e.g. `{=latex}`) and a refused link or image URL.
 
 > [!NOTE]
 > `carveToMarkdownWithReport(...).losses` alone is not a full portability
-> signal - its only code is `raw-format-dropped`, so it catches raw-fence drops
-> but not lossy conversions like an admonition flattened to a paragraph. The
-> profile covers those. `carve-okf` uses both.
+> signal. It catches writer losses but not lossy conversions like an admonition
+> flattened to a paragraph. The profile covers those. `carve-okf` uses both.
 
 ## Modes
 

@@ -48,6 +48,12 @@ describe('renderBody', () => {
     expect(losses.some((l) => l.code === 'raw-format-dropped' && l.format === 'latex')).toBe(true);
   });
 
+  it('passes through a refused destination from the renderer loss report', () => {
+    const { markdown, losses } = renderBody('[bad](javascript:alert(1))');
+    expect(markdown).not.toContain('javascript:');
+    expect(losses.some((l) => l.code === 'destination-denied')).toBe(true);
+  });
+
   it('reports task lists as non-portable in commonmark mode and degrades them in strict', () => {
     const src = '- [x] done\n- [ ] todo\n';
     const lenient = renderBody(src, { mode: 'commonmark' });
