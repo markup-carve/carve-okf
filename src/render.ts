@@ -26,10 +26,8 @@ export interface RenderedBody {
   /** Non-portable node types, from Carve's feature profile. */
   violations: ProfileViolation[];
   /**
-   * Raw-format drops the Markdown renderer reported (e.g. a `{=latex}` raw
-   * fence that has no Markdown form). The profile allows raw nodes - a raw HTML
-   * block passes through fine - so this is the signal for the ones the renderer
-   * cannot emit and silently deletes.
+   * Losses the Markdown renderer reported, including dropped raw formats and
+   * refused destinations. The profile reports structural portability separately.
    */
   losses: RenderLoss[];
 }
@@ -57,7 +55,7 @@ function countTaskItems(node: AnyNode | AnyNode[]): number {
  *
  * Portability is reported from two independent, complementary sources: the
  * feature profile (structural constructs with no Markdown form) and the
- * renderer's own raw-format loss report (raw fences it cannot emit). Detection
+ * renderer's own loss report (content it drops or refuses). Detection
  * and rendering are separate passes so a lenient render keeps full fidelity
  * while still carrying both signals.
  */
