@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-24
+
+OKF export reports destinations that the current Carve renderer denies.
+
+### Fixes
+
+- Denied destinations appear in the export report instead of disappearing from its loss accounting (#18).
+
+**Full Changelog**: https://github.com/markup-carve/carve-okf/compare/0.1.0...0.1.1
+
+
 ## [0.1.0] - 2026-09-20
 
 - Initial release: export a directory of Carve `.crv` documents to an Open
