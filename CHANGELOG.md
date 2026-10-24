@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-24
+
+OKF export now uses the published Carve 0.1.14 Markdown renderer and its current loss reporting.
+
+### Improvements
+
+- Export reports current Markdown losses for containers, captions, attributes, and escaped raw HTML.
+
+**Full Changelog**: https://github.com/markup-carve/carve-okf/compare/0.1.1...0.1.2
+
 ## [0.1.1] - 2026-10-24
 
 OKF export reports destinations that the current Carve renderer denies.
