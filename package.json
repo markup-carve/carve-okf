@@ -1,6 +1,6 @@
 {
   "name": "@markup-carve/carve-okf",
-  "version": "0.1.2",
+  "version": "0.1.1",
   "description": "Export Carve documents to an Open Knowledge Format (OKF) bundle",
   "type": "module",
   "bin": { "carve-okf": "dist/cli.js" },
