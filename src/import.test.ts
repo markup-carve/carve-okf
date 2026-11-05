@@ -48,6 +48,12 @@ describe('importBundle', () => {
     expect(out).toContain('/italic/');
   });
 
+  it('writes the front matter opener the Carve formatter writes', () => {
+    importBundle(okfDir, outDir);
+    const out = readFileSync(join(outDir, 'guide.crv'), 'utf8');
+    expect(out.startsWith('---yaml\ntype: guide\n')).toBe(true);
+  });
+
   it('rewrites an OKF .md link back to a .crv link', () => {
     importBundle(okfDir, outDir);
     const out = readFileSync(join(outDir, 'guide.crv'), 'utf8');

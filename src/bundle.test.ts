@@ -67,3 +67,22 @@ describe('exportBundle', () => {
     expect(glossary.violations.some((v) => v.nodeType === 'highlight')).toBe(true);
   });
 });
+
+describe('exportBundle with Carve format-token front matter', () => {
+  it('maps a ---toml block into the OKF header and keeps it out of the body', () => {
+    const base = mkdtempSync(join(tmpdir(), 'carve-okf-token-'));
+    const src = join(base, 'in');
+    const dest = join(base, 'out');
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, 'widget.crv'), '---toml\ntitle = "Widget"\ntype = "guide"\n---\n\n# Widget\n', 'utf8');
+    try {
+      const report = exportBundle(src, dest);
+      expect(report.concepts[0].type).toBe('guide');
+      expect(report.concepts[0].frontMatterFormat).toBe('toml');
+      const out = readFileSync(join(dest, 'widget.md'), 'utf8');
+      expect(out).toBe('---\ntype: guide\ntitle: Widget\n---\n\n# Widget\n');
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+});

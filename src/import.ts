@@ -29,7 +29,7 @@ export interface ImportReport {
 
 function carveFrontMatter(meta: Record<string, unknown>): string {
   if (Object.keys(meta).length === 0) return '';
-  return `---\n${yaml.dump(meta, { lineWidth: -1 }).trimEnd()}\n---\n\n`;
+  return `---yaml\n${yaml.dump(meta, { lineWidth: -1 }).trimEnd()}\n---\n\n`;
 }
 
 /**
