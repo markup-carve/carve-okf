@@ -9,7 +9,7 @@ export type { RenderOptions, RenderedBody } from './render.js';
 export { okfProfile } from './profile.js';
 export type { OkfProfileMode } from './profile.js';
 export { splitFrontMatter } from './frontmatter.js';
-export type { SplitFrontMatter, FrontMatterFormat } from './frontmatter.js';
+export type { SplitFrontMatter, FrontMatterFormat, FrontMatterSource } from './frontmatter.js';
 export { rewriteLinks, rewriteLinksToCarve } from './links.js';
 export type { LinkRewriteResult, LinkContext } from './links.js';
 export { copyAssets, createAssetRegistry } from './assets.js';

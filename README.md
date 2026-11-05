@@ -97,7 +97,8 @@ Portability is reported from two complementary, engine-backed sources:
 - Carve front matter (`---yaml`, `---toml`, `---json`, or a bare `---` for
   YAML) and `+++` TOML front matter, mapped to OKF YAML front matter with the
   required `type` injected when absent. A block in any other format is dropped
-  from the body without a mapping. `carve-okf import` writes `---yaml`, the
+  from the body without a mapping. On import, OKF Markdown front matter
+  opens with a bare `---` or `+++`; `carve-okf import` writes `---yaml`, the
   spelling `carve fmt` writes.
 - Cross-document `foo.crv` links rewritten to root-relative `/foo.md`, with
   unresolved targets reported.

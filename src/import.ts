@@ -52,7 +52,7 @@ export function importBundle(okfDir: string, outDir: string, opts: ImportOptions
     const slug = file.slice(0, -'.md'.length);
     const dir = posix.dirname(file) === '.' ? '' : posix.dirname(file);
     const src = readFileSync(join(okfDir, file), 'utf8');
-    const { meta, body } = splitFrontMatter(src);
+    const { meta, body } = splitFrontMatter(src, 'markdown');
 
     const migrated = migrateMarkdown(body);
     const linked = rewriteLinksToCarve(migrated.value, mdPaths, dir);
