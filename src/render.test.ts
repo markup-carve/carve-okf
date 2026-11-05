@@ -70,3 +70,12 @@ describe('renderBody', () => {
     expect(violations.some((v) => v.nodeType === 'list_item')).toBe(false);
   });
 });
+
+describe('renderBody table alignment', () => {
+  it('exports a braced header alignment as a GFM alignment row without losses', () => {
+    const { markdown, losses, violations } = renderBody('|={>} Price |= Item |\n| 3 | Tea |\n');
+    expect(markdown).toBe('| Price | Item |\n| ---: | --- |\n| 3 | Tea |\n');
+    expect(losses).toEqual([]);
+    expect(violations).toEqual([]);
+  });
+});

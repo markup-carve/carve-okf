@@ -60,3 +60,16 @@ describe('importBundle', () => {
     expect(out).toContain('[terms](glossary.crv)');
   });
 });
+
+describe('importBundle Markdown migration', () => {
+  it('turns a GitHub alert into an admonition and an HTML comment into a Carve comment', () => {
+    writeFileSync(
+      join(okfDir, 'notes.md'),
+      '---\ntype: guide\n---\n\n> [!NOTE]\n> Check the keys.\n\n<!-- draft -->\n\nDone.\n',
+      'utf8',
+    );
+    importBundle(okfDir, outDir);
+    const out = readFileSync(join(outDir, 'notes.crv'), 'utf8');
+    expect(out).toBe('---yaml\ntype: guide\n---\n\n::: note\nCheck the keys.\n:::\n\n%% draft\n\nDone.\n');
+  });
+});
