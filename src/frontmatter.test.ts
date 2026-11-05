@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { parse } from '@markup-carve/carve';
 import { splitFrontMatter } from './frontmatter.js';
 
 describe('splitFrontMatter', () => {
@@ -45,6 +46,22 @@ describe('splitFrontMatter', () => {
     const src = '---toml\ntype = "guide"\n---\n\nbody\n';
     expect(splitFrontMatter(src, 'markdown')).toEqual({ meta: {}, format: 'none', body: src });
     expect(splitFrontMatter('---\ntype: guide\n---\nbody\n', 'markdown').meta).toEqual({ type: 'guide' });
+  });
+
+  it.each([
+    ['---\ntype: guide\n\n# Head\n', 'yaml'],
+    ['---toml\ntype = "guide"\n\n# Head\n', 'toml'],
+  ])('reads an unclosed first-line opener through the end of the document, as Carve does: %j', (src, format) => {
+    const r = splitFrontMatter(src);
+    expect(r.format).toBe(format);
+    expect(r.meta).toEqual({ type: 'guide' });
+    expect(r.body).toBe('');
+    expect(parse(src).children).toEqual([]);
+  });
+
+  it('keeps an unclosed --- in OKF Markdown as body text', () => {
+    const src = '---\n# Heading\n\nText.\n';
+    expect(splitFrontMatter(src, 'markdown')).toEqual({ meta: {}, format: 'none', body: src });
   });
 
   it('returns none when there is no front matter', () => {
