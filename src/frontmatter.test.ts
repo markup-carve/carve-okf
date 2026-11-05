@@ -16,6 +16,31 @@ describe('splitFrontMatter', () => {
     expect(r.body).toBe('\n# Body\n');
   });
 
+  it.each([
+    ['---yaml\ntype: guide\n---\n\nbody\n', 'yaml'],
+    ['--- yaml\ntype: guide\n---\n\nbody\n', 'yaml'],
+    ['---toml\ntype = "guide"\n---\n\nbody\n', 'toml'],
+    ['--- toml\ntype = "guide"\n---\n\nbody\n', 'toml'],
+    ['---json\n{"type": "guide"}\n---\n\nbody\n', 'json'],
+  ])('reads the Carve format token in %j', (src, format) => {
+    const r = splitFrontMatter(src);
+    expect(r.format).toBe(format);
+    expect(r.meta).toEqual({ type: 'guide' });
+    expect(r.body).toBe('\nbody\n');
+  });
+
+  it('strips a dialect it cannot parse without guessing a mapping', () => {
+    const r = splitFrontMatter('---ini\ntype=guide\n---\nbody\n');
+    expect(r.format).toBe('unknown');
+    expect(r.meta).toEqual({});
+    expect(r.body).toBe('body\n');
+  });
+
+  it('leaves a token after two spaces in the body, as Carve does', () => {
+    const src = '---  toml\ntype = "guide"\n---\nbody\n';
+    expect(splitFrontMatter(src)).toEqual({ meta: {}, format: 'none', body: src });
+  });
+
   it('returns none when there is no front matter', () => {
     const r = splitFrontMatter('# Just a body\n');
     expect(r.format).toBe('none');
