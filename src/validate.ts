@@ -51,7 +51,7 @@ export function validateBundle(okfDir: string): ValidationReport {
   for (const file of files) {
     const dir = posix.dirname(file) === '.' ? '' : posix.dirname(file);
     const src = readFileSync(join(okfDir, file), 'utf8');
-    const { meta, body } = splitFrontMatter(src);
+    const { meta, body } = splitFrontMatter(src, 'markdown');
 
     if (!isReserved(file) && meta.type == null) {
       issues.push({ severity: 'error', file, code: 'missing-type', message: 'front matter is missing the required `type` key' });

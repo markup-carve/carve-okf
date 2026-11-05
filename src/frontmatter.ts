@@ -3,6 +3,9 @@ import * as toml from 'smol-toml';
 
 export type FrontMatterFormat = 'yaml' | 'toml' | 'json' | 'unknown' | 'none';
 
+/** Carve sources take a format token after `---`; OKF Markdown takes a bare `---`. */
+export type FrontMatterSource = 'carve' | 'markdown';
+
 export interface SplitFrontMatter {
   /** Parsed front-matter mapping (empty object when there is none). */
   meta: Record<string, unknown>;
@@ -26,9 +29,9 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 /** Split a leading Carve (`---`, `---toml`, ...) or TOML (`+++`) front-matter block from the body. */
-export function splitFrontMatter(source: string): SplitFrontMatter {
+export function splitFrontMatter(source: string, from: FrontMatterSource = 'carve'): SplitFrontMatter {
   const carveMatch = source.match(CARVE_RE);
-  if (carveMatch) {
+  if (carveMatch && (from === 'carve' || carveMatch[1] === undefined)) {
     const body = source.slice(carveMatch[0].length);
     const format = (carveMatch[1] ?? 'yaml').toLowerCase();
     if (format === 'yaml') return { meta: asRecord(yaml.load(carveMatch[2])), format: 'yaml', body };

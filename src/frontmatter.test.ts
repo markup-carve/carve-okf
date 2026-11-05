@@ -41,6 +41,12 @@ describe('splitFrontMatter', () => {
     expect(splitFrontMatter(src)).toEqual({ meta: {}, format: 'none', body: src });
   });
 
+  it('keeps a format-token line in OKF Markdown, which has no such opener', () => {
+    const src = '---toml\ntype = "guide"\n---\n\nbody\n';
+    expect(splitFrontMatter(src, 'markdown')).toEqual({ meta: {}, format: 'none', body: src });
+    expect(splitFrontMatter('---\ntype: guide\n---\nbody\n', 'markdown').meta).toEqual({ type: 'guide' });
+  });
+
   it('returns none when there is no front matter', () => {
     const r = splitFrontMatter('# Just a body\n');
     expect(r.format).toBe('none');
