@@ -4,6 +4,24 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-11
+
+Requires the Carve engine 0.1.16. Front matter follows the Carve opener rules, and import writes current canonical Carve.
+
+### Fixes
+
+- Export reads Carve front matter written with a format token (`---yaml`, `--- toml`, `---json`); import writes `---yaml` (#22).
+- Import and validate read OKF Markdown front matter from a bare `---` or `+++` only, so a `---toml` first line stays body text (#24).
+
+### Improvements
+
+- Require `@markup-carve/carve` 0.1.16 (#23).
+- Export reads a first-line `---` with no closer as front matter to the end of the document (#23).
+- Import turns GitHub alerts into admonitions and HTML comments into Carve comments, and writes `***` breaks, `|=` table headers and braced alignment (`|={>}`) (#23).
+- Import no longer reads `data-djot-*` attribute carriers (markup-carve/carve#5735).
+
+**Full Changelog**: https://github.com/markup-carve/carve-okf/compare/0.1.1...0.1.2
+
 ## [0.1.1] - 2026-10-24
 
 OKF export reports denied destinations and current Markdown losses from the published Carve 0.1.14 renderer.
