@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-## [0.1.2] - 2026-11-11
+## [0.1.2] - 2026-11-12
 
 Requires the Carve engine 0.1.16. Front matter follows the Carve opener rules, and import writes current canonical Carve.
 
@@ -15,7 +15,7 @@ Requires the Carve engine 0.1.16. Front matter follows the Carve opener rules, a
 
 ### Improvements
 
-- Require `@markup-carve/carve` 0.1.16 (#23).
+- Require `@markup-carve/carve` 0.1.16, from the npm registry (#23, #27).
 - Export reads a first-line `---` with no closer as front matter to the end of the document (#23).
 - Import turns GitHub alerts into admonitions and HTML comments into Carve comments, and writes `***` breaks, `|=` table headers and braced alignment (`|={>}`) (#23).
 - Import no longer reads `data-djot-*` attribute carriers (markup-carve/carve#5735).
