@@ -136,42 +136,84 @@ export function portabilityViolations(tree: DocumentNode, profile: OkfProfile): 
   return out;
 }
 
-function plainText(node: Tree): string {
-  if (typeof node.value === 'string' && node.type !== 'comment') return node.value;
-  if (node.type === 'soft_break' || node.type === 'hard_break') return ' ';
+// The readable text of an inline leaf, so degrading it keeps what a reader saw.
+function leafText(node: Tree): string {
+  if (node.type === 'comment') return '';
+  if (typeof node.value === 'string') return node.value;
   if (typeof node.glyph === 'string') return node.glyph;
-  return childLists(node)
-    .map(([, list]) => list.map(plainText).join(''))
-    .join(' ')
-    .replace(/\s+/g, ' ');
+  if (node.type === 'symbol' && typeof node.name === 'string') return `:${node.name}:`;
+  if (node.type === 'mention' && typeof node.target === 'string') return `@${node.target}`;
+  if (node.type === 'xref' && typeof node.key === 'string') return node.key;
+  if (node.type === 'image' && typeof node.alt === 'string') return node.alt;
+  return '';
 }
 
+function isInlineList(list: Tree[]): boolean {
+  return list.length > 0 && INLINE_OR_TEXT.has(list[0].type);
+}
+
+const TABLE_GROUPS = new Set(['table_head', 'table_body', 'table_foot']);
+
 /**
- * A copy of the tree with every node outside the profile degraded: to its text
- * (an inline node to a `text` node, a block to a paragraph) or removed.
+ * A copy of the tree with every node outside the profile degraded or removed.
+ * `to_text` unwraps a denied node: an inline node gives its children (or the
+ * text of a leaf), a block gives its blocks, or one paragraph of its inlines,
+ * and a table gives one paragraph per row with its cells joined by ` | `.
  */
 export function degradeTree(tree: DocumentNode, profile: OkfProfile): DocumentNode {
-  const rewrite = (list: Tree[], inline: boolean): Tree[] =>
+  const inlines = (list: Tree[]): Tree[] =>
     list.flatMap((node): Tree[] => {
-      if (isAllowed(profile, node.type)) return [rewriteNode(node)];
+      if (isAllowed(profile, node.type)) return [copyNode(node)];
       if (profile.action === 'strip') return [];
-      const text = plainText(node).trim();
-      if (!text) return [];
-      const leaf: Tree = { type: 'text', value: text };
-      return [inline ? leaf : { type: 'paragraph', children: [leaf] }];
+      if (Array.isArray(node.children)) return inlines(node.children as Tree[]);
+      const text = leafText(node);
+      return text ? [{ type: 'text', value: text }] : [];
     });
-  const rewriteNode = (node: Tree): Tree => {
-    const copy: Tree = { ...node };
-    for (const [key, list] of childLists(node)) {
-      const inline = list.length > 0 && INLINE_OR_TEXT.has(list[0].type);
-      const next = rewrite(list, inline);
-      if (Array.isArray(node[key])) copy[key] = next;
-      else if (next.length) copy[key] = next[0];
-      else delete copy[key];
+  const paragraph = (children: Tree[]): Tree[] => (children.length ? [{ type: 'paragraph', children }] : []);
+  const rows = (node: Tree): Tree[] => {
+    const kids = (node.children as Tree[] | undefined) ?? [];
+    if (node.type === 'table_row') {
+      const cells = kids.filter((cell) => !cell.span).map((cell) => blocksToInlines(blocks((cell.children as Tree[]) ?? [])));
+      return paragraph(cells.flatMap((cell, i) => (i ? [{ type: 'text', value: ' | ' }, ...cell] : cell)));
     }
+    return kids.flatMap(rows);
+  };
+  const blocksToInlines = (list: Tree[]): Tree[] =>
+    list.flatMap((block, i) => [
+      ...(i ? [{ type: 'text', value: ' ' }] : []),
+      ...((block.children as Tree[] | undefined) ?? []),
+    ]);
+  const degradeBlock = (node: Tree): Tree[] => {
+    if (node.type === 'table' || TABLE_GROUPS.has(node.type)) return rows(node);
+    const kids = (node.children as Tree[] | undefined) ?? [];
+    const out = isInlineList(kids) ? paragraph(inlines(kids)) : blocks(kids);
+    const caption = node.caption as Tree | undefined;
+    return caption ? [...out, ...degradeBlock(caption)] : out;
+  };
+  const blocks = (list: Tree[]): Tree[] =>
+    list.flatMap((node): Tree[] => {
+      if (!isAllowed(profile, node.type)) return profile.action === 'strip' ? [] : degradeBlock(node);
+      const copy = copyNode(node);
+      const caption = node.caption as Tree | undefined;
+      if (caption && !isAllowed(profile, caption.type)) {
+        delete copy.caption;
+        return profile.action === 'strip' ? [copy] : [copy, ...degradeBlock(caption)];
+      }
+      return [copy];
+    });
+  const copyNode = (node: Tree): Tree => {
+    const copy: Tree = { ...node };
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'pos' || key === 'caption' || !Array.isArray(value)) continue;
+      if (!value.every((v) => v && typeof v === 'object' && 'type' in v)) continue;
+      const list = value as Tree[];
+      copy[key] = isInlineList(list) ? inlines(list) : blocks(list);
+    }
+    const caption = node.caption as Tree | undefined;
+    if (caption && isAllowed(profile, caption.type)) copy.caption = copyNode(caption);
     return copy;
   };
-  return rewriteNode(tree as unknown as Tree) as unknown as DocumentNode;
+  return copyNode(tree as unknown as Tree) as unknown as DocumentNode;
 }
 
 const INLINE_OR_TEXT = new Set([

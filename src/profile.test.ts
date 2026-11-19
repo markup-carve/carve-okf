@@ -49,3 +49,20 @@ describe('portabilityViolations and degradeTree', () => {
     expect(toMarkdown(degradeTree(tree, okfProfile('gfm', 'strip'))).output).toBe('A  and HO.\n');
   });
 });
+
+describe('degradeTree keeps boundaries and leaf text', () => {
+  const md = (src: string, mode: 'gfm' | 'commonmark' = 'gfm') => toMarkdown(degradeTree(parse(src), okfProfile(mode))).output;
+
+  it('unwraps a container into its blocks', () => {
+    expect(md('::: note\nFirst.\n\nSecond.\n:::\n')).toBe('First.\n\nSecond.\n');
+    expect(md(':: Term\n: Desc one.\n\n  Desc two.\n')).toBe('Term\n\nDesc one.\n\nDesc two.\n');
+  });
+
+  it('writes a table as one paragraph per row in commonmark mode', () => {
+    expect(md('|= Name |= Value |\n| a | b |\n', 'commonmark')).toBe('Name | Value\n\na | b\n');
+  });
+
+  it('keeps the text of symbols, mentions and portable formatting inside a denied span', () => {
+    expect(md('A :smile: B and @foo and {=*bold* mark=}.\n')).toBe('A :smile: B and @foo and **bold** mark.\n');
+  });
+});
