@@ -19,7 +19,8 @@ beforeAll(() => {
   );
   writeFileSync(
     join(inDir, 'glossary.crv'),
-    '+++\ntitle = "Glossary"\n+++\n\n# Glossary\n\nA =term= here.\n',
+    // Upgraded to 0.2: a bare highlight takes braces (U-067).
+    '+++\ntitle = "Glossary"\n+++\n\n# Glossary\n\nA {=term=} here.\n',
     'utf8',
   );
 });
@@ -61,7 +62,7 @@ describe('exportBundle', () => {
     expect(out).toContain('[terms](/glossary.md)');
   });
 
-  it('reports the =highlight= construct as non-portable', () => {
+  it('reports the {=highlight=} construct as non-portable', () => {
     const report = exportBundle(inDir, outDir);
     const glossary = report.concepts.find((c) => c.slug === 'glossary')!;
     expect(glossary.violations.some((v) => v.nodeType === 'highlight')).toBe(true);

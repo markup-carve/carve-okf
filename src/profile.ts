@@ -1,4 +1,4 @@
-import { Profile, type DisallowedAction } from '@markup-carve/carve';
+import type { DocumentNode } from '@markup-carve/carve';
 
 /**
  * Target Markdown dialect the bundle must survive in.
@@ -11,15 +11,19 @@ import { Profile, type DisallowedAction } from '@markup-carve/carve';
  */
 export type OkfProfileMode = 'gfm' | 'commonmark';
 
+/**
+ * What to do with a disallowed node when the profile is used to transform:
+ * `to_text` degrades it to its text content, `strip` removes it.
+ */
+export type DisallowedAction = 'to_text' | 'strip';
+
 // Carve block node types with no portable Markdown form. `raw_block` is kept: it
-// may carry an HTML/format payload the renderer reports separately via its
-// raw-format loss report.
+// may carry an HTML/format payload the writer reports separately as a loss.
 const NON_PORTABLE_BLOCK = [
   'admonition',
   'definition_list',
   'definition_term',
   'definition_description',
-  'figure',
   'figure_group',
   'caption',
   'line_block',
@@ -27,8 +31,8 @@ const NON_PORTABLE_BLOCK = [
   'abbreviation_def',
 ];
 
-// Carve inline node types with no portable Markdown form. Carve renders each of
-// these to a raw HTML fallback (`<mark>`, `<u>`, `<sup>`, ...) rather than a
+// Carve inline node types with no portable Markdown form. The Markdown writer
+// writes each as inline HTML (`<mark>`, `<u>`, `<sup>`, ...) rather than a
 // Markdown token, so they do not survive an HTML-sanitizing consumer.
 const NON_PORTABLE_INLINE = [
   'underline',
@@ -37,6 +41,8 @@ const NON_PORTABLE_INLINE = [
   'delete',
   'superscript',
   'subscript',
+  'small_caps',
+  'ruby',
   'span',
   'math',
   'symbol',
@@ -45,34 +51,187 @@ const NON_PORTABLE_INLINE = [
   'citation_group',
   'critic_comment',
   'caption_number',
-  'heading_ref',
-  'substitution',
+  'xref',
   'mention',
 ];
 
 // GFM extensions that CommonMark itself lacks.
-const GFM_ONLY_BLOCK = ['table', 'table_row', 'table_cell'];
+const GFM_ONLY_BLOCK = ['table', 'table_head', 'table_body', 'table_foot', 'table_row', 'table_cell'];
 const GFM_ONLY_INLINE = ['strike', 'footnote_ref', 'inline_footnote'];
+
+export interface OkfProfile {
+  readonly mode: OkfProfileMode;
+  readonly action: DisallowedAction;
+  isTypeAllowed(type: string, block: boolean): boolean;
+}
+
+/** A node type the target dialect cannot carry, at its RFC 6901 path in the tree. */
+export interface PortabilityViolation {
+  nodeType: string;
+  reason: 'element_not_allowed';
+  reasonDescription: string;
+  path?: string;
+}
 
 /**
  * Build the portability profile for a target Markdown dialect.
  *
- * Applying it to a resolved document yields a `violations` list - the real,
- * engine-backed contract for "what will not survive as Markdown". This replaces
- * an AST type-walk heuristic: Carve's own `Profile` is the source of truth for
- * which node types are portable.
- *
- * @param mode   Target dialect.
- * @param action What to do with a disallowed node when the profile is used to
- *               transform (not just detect). `to_text` degrades it to its text
- *               content; `strip` removes it; `error` throws.
+ * Carve 0.2 has no custom profiles (its `profile` option names the four HTML
+ * profiles), so the deny lists live here and are checked against the tree.
  */
-export function okfProfile(mode: OkfProfileMode = 'gfm', action: DisallowedAction = 'to_text'): Profile {
-  const deniedBlock = [...NON_PORTABLE_BLOCK];
-  const deniedInline = [...NON_PORTABLE_INLINE];
+export function okfProfile(mode: OkfProfileMode = 'gfm', action: DisallowedAction = 'to_text'): OkfProfile {
+  const block = new Set(NON_PORTABLE_BLOCK);
+  const inline = new Set(NON_PORTABLE_INLINE);
   if (mode === 'commonmark') {
-    deniedBlock.push(...GFM_ONLY_BLOCK);
-    deniedInline.push(...GFM_ONLY_INLINE);
+    GFM_ONLY_BLOCK.forEach((t) => block.add(t));
+    GFM_ONLY_INLINE.forEach((t) => inline.add(t));
   }
-  return Profile.full().denyBlock(deniedBlock).denyInline(deniedInline).onDisallowed(action);
+  return {
+    mode,
+    action,
+    isTypeAllowed: (type, isBlock) => !(isBlock ? block : inline).has(type),
+  };
 }
+
+type Tree = { type: string; [key: string]: unknown };
+
+const INLINE_TYPES = new Set([...NON_PORTABLE_INLINE, ...GFM_ONLY_INLINE]);
+
+function isAllowed(profile: OkfProfile, type: string): boolean {
+  return profile.isTypeAllowed(type, !INLINE_TYPES.has(type));
+}
+
+function childLists(node: Tree): [string, Tree[]][] {
+  const lists: [string, Tree[]][] = [];
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'pos' || key === 'attrs' || key === 'data' || key === 'metadata') continue;
+    if (Array.isArray(value) && value.every((v) => v && typeof v === 'object' && 'type' in v)) {
+      lists.push([key, value as Tree[]]);
+    } else if (value && typeof value === 'object' && 'type' in (value as object)) {
+      lists.push([key, [value as Tree]]);
+    }
+  }
+  return lists;
+}
+
+/** Every node outside the profile, outermost first; nodes inside a denied node are not listed again. */
+export function portabilityViolations(tree: DocumentNode, profile: OkfProfile): PortabilityViolation[] {
+  const out: PortabilityViolation[] = [];
+  const walk = (node: Tree, path: string): void => {
+    if (node.type !== 'document' && !isAllowed(profile, node.type)) {
+      out.push({
+        nodeType: node.type,
+        reason: 'element_not_allowed',
+        reasonDescription: `${node.type} has no portable ${profile.mode === 'gfm' ? 'GFM' : 'CommonMark'} form`,
+        path,
+      });
+      return;
+    }
+    for (const [key, list] of childLists(node)) {
+      const single = !Array.isArray(node[key]);
+      list.forEach((child, i) => walk(child, single ? `${path}/${key}` : `${path}/${key}/${i}`));
+    }
+  };
+  walk(tree as unknown as Tree, '');
+  return out;
+}
+
+// The readable text of an inline leaf, so degrading it keeps what a reader saw.
+function leafText(node: Tree): string {
+  if (node.type === 'comment') return '';
+  if (typeof node.value === 'string') return node.value;
+  if (typeof node.glyph === 'string') return node.glyph;
+  if (node.type === 'symbol' && typeof node.name === 'string') return `:${node.name}:`;
+  if (node.type === 'mention' && typeof node.target === 'string') return `@${node.target}`;
+  if (node.type === 'xref' && typeof node.key === 'string') return node.key;
+  if (node.type === 'image' && typeof node.alt === 'string') return node.alt;
+  return '';
+}
+
+function isInlineList(list: Tree[]): boolean {
+  return list.length > 0 && INLINE_OR_TEXT.has(list[0].type);
+}
+
+const TABLE_GROUPS = new Set(['table_head', 'table_body', 'table_foot']);
+
+/**
+ * A copy of the tree with every node outside the profile degraded or removed.
+ * `to_text` unwraps a denied node: an inline node gives its children (or the
+ * text of a leaf), a block gives its blocks, or one paragraph of its inlines,
+ * and a table gives one paragraph per row with its cells joined by ` | `.
+ */
+export function degradeTree(tree: DocumentNode, profile: OkfProfile): DocumentNode {
+  const inlines = (list: Tree[]): Tree[] =>
+    list.flatMap((node): Tree[] => {
+      if (isAllowed(profile, node.type)) return [copyNode(node)];
+      if (profile.action === 'strip') return [];
+      if (Array.isArray(node.children)) return inlines(node.children as Tree[]);
+      const text = leafText(node);
+      return text ? [{ type: 'text', value: text }] : [];
+    });
+  const paragraph = (children: Tree[]): Tree[] => (children.length ? [{ type: 'paragraph', children }] : []);
+  const rows = (node: Tree): Tree[] => {
+    const kids = (node.children as Tree[] | undefined) ?? [];
+    if (node.type === 'table_row') {
+      const cells = kids.filter((cell) => !cell.span).map((cell) => blocksToInlines(blocks((cell.children as Tree[]) ?? [])));
+      return paragraph(cells.flatMap((cell, i) => (i ? [{ type: 'text', value: ' | ' }, ...cell] : cell)));
+    }
+    return kids.flatMap(rows);
+  };
+  const blocksToInlines = (list: Tree[]): Tree[] =>
+    list.flatMap((block, i) => [
+      ...(i ? [{ type: 'text', value: ' ' }] : []),
+      ...((block.children as Tree[] | undefined) ?? []),
+    ]);
+  const degradeBlock = (node: Tree): Tree[] => {
+    if (node.type === 'table' || TABLE_GROUPS.has(node.type)) return rows(node);
+    const kids = (node.children as Tree[] | undefined) ?? [];
+    const out = isInlineList(kids) ? paragraph(inlines(kids)) : blocks(kids);
+    const caption = node.caption as Tree | undefined;
+    return caption ? [...out, ...degradeBlock(caption)] : out;
+  };
+  const blocks = (list: Tree[]): Tree[] =>
+    list.flatMap((node): Tree[] => {
+      if (!isAllowed(profile, node.type)) return profile.action === 'strip' ? [] : degradeBlock(node);
+      const copy = copyNode(node);
+      const caption = node.caption as Tree | undefined;
+      if (caption && !isAllowed(profile, caption.type)) {
+        delete copy.caption;
+        return profile.action === 'strip' ? [copy] : [copy, ...degradeBlock(caption)];
+      }
+      return [copy];
+    });
+  const copyNode = (node: Tree): Tree => {
+    const copy: Tree = { ...node };
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'pos' || key === 'caption' || !Array.isArray(value)) continue;
+      if (!value.every((v) => v && typeof v === 'object' && 'type' in v)) continue;
+      const list = value as Tree[];
+      copy[key] = isInlineList(list) ? inlines(list) : blocks(list);
+    }
+    const caption = node.caption as Tree | undefined;
+    if (caption && isAllowed(profile, caption.type)) copy.caption = copyNode(caption);
+    return copy;
+  };
+  return copyNode(tree as unknown as Tree) as unknown as DocumentNode;
+}
+
+const INLINE_OR_TEXT = new Set([
+  ...INLINE_TYPES,
+  'text',
+  'strong',
+  'emphasis',
+  'link',
+  'image',
+  'code',
+  'soft_break',
+  'hard_break',
+  'smart_punctuation',
+  'autolink',
+  'literal_inline',
+  'raw_inline',
+  'non_breaking_space',
+  'inline_extension',
+  'tag',
+  'comment',
+]);

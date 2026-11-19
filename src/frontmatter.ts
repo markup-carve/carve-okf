@@ -16,7 +16,7 @@ export interface SplitFrontMatter {
 }
 
 // Carve opens front matter with `---`, one optional space and an optional
-// format token (`---yaml`, `--- toml`); `carve fmt` writes `---yaml`. Without a
+// format token (`---yaml`, `--- toml`); `carve fmt` writes a bare `---` for YAML. Without a
 // closer a Carve block runs to the end of the document (PART 1); in Markdown a
 // lone `---` is a thematic break. `+++` TOML is not Carve syntax. The block is
 // split here so its mapping reaches the OKF header instead of the body.
