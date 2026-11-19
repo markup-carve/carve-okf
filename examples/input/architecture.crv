@@ -1,4 +1,4 @@
----yaml
+---
 title: Widget Architecture
 description: How the widget engine fits together.
 tags:
@@ -7,7 +7,7 @@ tags:
 type: reference
 ---
 
-# Architecture
+= Architecture
 
 The engine has three layers.[^layers] See the
 [getting started guide](getting-started.crv) for the basics.

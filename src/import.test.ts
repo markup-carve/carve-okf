@@ -48,10 +48,11 @@ describe('importBundle', () => {
     expect(out).toContain('/italic/');
   });
 
+  // The 0.2 writer spells YAML frontmatter with a bare `---` (C2-W-052); 0.1 wrote `---yaml`.
   it('writes the front matter opener the Carve formatter writes', () => {
     importBundle(okfDir, outDir);
     const out = readFileSync(join(outDir, 'guide.crv'), 'utf8');
-    expect(out.startsWith('---yaml\ntype: guide\n')).toBe(true);
+    expect(out.startsWith('---\ntype: guide\n')).toBe(true);
   });
 
   it('rewrites an OKF .md link back to a .crv link', () => {
@@ -62,7 +63,9 @@ describe('importBundle', () => {
 });
 
 describe('importBundle Markdown migration', () => {
-  it('turns a GitHub alert into an admonition and an HTML comment into a Carve comment', () => {
+  // The 0.2 Markdown importer keeps raw HTML of Markdown, an HTML comment included, as a raw node
+  // (carve-js docs/import.md), where 0.1 turned the comment into a Carve comment.
+  it('turns a GitHub alert into an admonition and keeps an HTML comment as raw HTML', () => {
     writeFileSync(
       join(okfDir, 'notes.md'),
       '---\ntype: guide\n---\n\n> [!NOTE]\n> Check the keys.\n\n<!-- draft -->\n\nDone.\n',
@@ -70,6 +73,6 @@ describe('importBundle Markdown migration', () => {
     );
     importBundle(okfDir, outDir);
     const out = readFileSync(join(outDir, 'notes.crv'), 'utf8');
-    expect(out).toBe('---yaml\ntype: guide\n---\n\n::: note\nCheck the keys.\n:::\n\n%% draft\n\nDone.\n');
+    expect(out).toBe('---\ntype: guide\n---\n\n::: note\nCheck the keys.\n:::\n\n```=html\n<!-- draft -->\n```\n\nDone.\n');
   });
 });
