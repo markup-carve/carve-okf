@@ -56,7 +56,10 @@ describe('splitFrontMatter', () => {
     expect(r.format).toBe(format);
     expect(r.meta).toEqual({ type: 'guide' });
     expect(r.body).toBe('');
-    expect(parse(src).children).toEqual([]);
+    // In 0.2 the frontmatter is the first node in children (C2-A-011, C2-A-049); unclosed, it still runs to the end (C2-B-163).
+    const children = parse(src).children;
+    expect(children.map((c) => c.type)).toEqual(['frontmatter']);
+    expect(children[0]).toMatchObject({ format, value: src.slice(src.indexOf('\n') + 1) });
   });
 
   it('keeps an unclosed --- in OKF Markdown as body text', () => {

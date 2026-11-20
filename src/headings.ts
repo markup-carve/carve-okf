@@ -1,4 +1,4 @@
-import { carveToHtml } from '@markup-carve/carve';
+import { render } from '@markup-carve/carve';
 
 // Carve wraps each heading in a `<section id="...">`; the id is Carve's
 // canonical heading anchor (case-preserved, punctuation stripped, spaces to
@@ -12,7 +12,7 @@ const SECTION_ID_RE = /<section id="([^"]+)">/g;
  * @param body Carve source (front matter already removed).
  */
 export function headingIds(body: string): string[] {
-  const html = carveToHtml(body);
+  const html = render(body);
   const ids: string[] = [];
   for (const m of html.matchAll(SECTION_ID_RE)) ids.push(m[1]);
   return ids;

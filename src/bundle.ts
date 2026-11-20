@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import yaml from 'js-yaml';
-import type { ProfileViolation, RenderLoss } from '@markup-carve/carve';
+import type { Diagnostic } from '@markup-carve/carve';
 import { splitFrontMatter, type FrontMatterFormat } from './frontmatter.js';
 import { renderBody } from './render.js';
 import { rewriteLinks } from './links.js';
@@ -10,7 +10,7 @@ import { gitLog } from './log.js';
 import { listCrvFiles } from './files.js';
 import { headingIds, buildHeadingIndex } from './headings.js';
 import { findDiagramFences, type DiagramFence } from './diagrams.js';
-import type { OkfProfileMode } from './profile.js';
+import type { OkfProfileMode, PortabilityViolation } from './profile.js';
 
 export interface ExportOptions {
   /** Target Markdown dialect. Default `gfm`. */
@@ -29,9 +29,9 @@ export interface ConceptReport {
   type: string;
   typeInjected: boolean;
   frontMatterFormat: FrontMatterFormat;
-  violations: ProfileViolation[];
+  violations: PortabilityViolation[];
   /** Raw-format fences the renderer could not emit and dropped. */
-  losses: RenderLoss[];
+  losses: Diagnostic[];
   unresolvedLinks: string[];
   assetsCopied: string[];
   assetsMissing: string[];

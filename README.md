@@ -6,9 +6,12 @@ with YAML front matter, a generated `index.md`, and a git-derived `log.md`.
 
 Carve is a rich document markup with constructs Markdown has no portable form for
 (admonitions, highlight, underline, sup/sub, definition lists, citations, math).
-`carve-okf` renders each document to portable Markdown and reports - from Carve's
-own feature profile, not a guess - exactly which constructs do not survive the
-trip.
+`carve-okf` renders each document to portable Markdown and reports, from the
+node types of the Carve tree rather than a guess, exactly which constructs do not
+survive the trip.
+
+This branch (`next2`) targets Carve 0.2: it depends on carve-js `next2`, pinned by
+commit as a git dependency (`npm install` builds it), and is not released.
 
 ## Install
 
@@ -62,28 +65,34 @@ for (const c of report.concepts) {
 }
 ```
 
-`renderBody(body, opts)` returns `{ markdown, violations }` for a single body,
-where `violations` is the engine-backed list of non-portable constructs.
+`renderBody(body, opts)` returns `{ markdown, violations, losses }` for a single
+body. `violations` lists the non-portable constructs (`nodeType`, `reason`,
+`reasonDescription` and the node's `path` in the tree); `losses` holds the
+Markdown writer's `render-loss` diagnostics (`code`, `severity`, `message`,
+`path`).
 
 ## How portability is decided
 
 Portability is reported from two complementary, engine-backed sources:
 
-1. A Carve **`Profile`** - the same feature-restriction mechanism the engine
-   ships - built to deny the node types that have no form in the target dialect.
-   Running it over a resolved document yields the structural violation list
-   (admonition, highlight, sup/sub, definition list, ...), so the report tracks
-   the engine's own vocabulary rather than a heuristic that drifts.
-2. The Markdown renderer's **loss report**. It records raw content the writer
-   drops (`raw-format-dropped`) and destinations it refuses
-   (`destination-denied`). The profile deliberately allows raw nodes, since a
-   raw HTML block passes through Markdown. The loss report catches a raw fence
-   the renderer cannot emit (e.g. `{=latex}`) and a refused link or image URL.
+1. A **portability profile** (`okfProfile(mode)`) that denies the Carve 0.2
+   node types with no form in the target dialect. Walking the parsed tree with
+   it (`portabilityViolations`) yields the structural violation list
+   (admonition, highlight, sup/sub, definition list, ...) in the engine's own
+   node vocabulary. Carve 0.2 has no custom profiles (its `profile` option names
+   the four HTML profiles), so the deny lists live in `carve-okf`. In strict
+   mode `degradeTree` replaces each denied node with its text before writing.
+2. The Markdown writer's **loss report** (`toMarkdown` of
+   `@markup-carve/carve/export`). It records raw content the writer drops
+   (`raw-format-dropped`) and destinations it refuses (`destination-denied`).
+   The profile deliberately allows raw nodes, since a raw HTML block passes
+   through Markdown. The loss report catches a raw fence the writer cannot emit
+   (e.g. `{=latex}`) and a refused link or image URL.
 
 > [!NOTE]
-> `carveToMarkdownWithReport(...).losses` alone is not a full portability
-> signal. It catches writer losses but not lossy conversions like an admonition
-> flattened to a paragraph. The profile covers those. `carve-okf` uses both.
+> The writer's loss report alone is not a full portability signal. It catches
+> writer losses but not lossy conversions like an admonition flattened to a
+> paragraph. The profile covers those. `carve-okf` uses both.
 
 ## Modes
 
@@ -100,7 +109,7 @@ Portability is reported from two complementary, engine-backed sources:
   from the body without a mapping. As in Carve, a first-line `---` with no
   closer is front matter through the end of the document. On import, OKF
   Markdown front matter opens with a bare `---` or `+++` and needs a closer;
-  `carve-okf import` writes `---yaml`, the spelling `carve fmt` writes.
+  `carve-okf import` writes a bare `---`, the spelling `carve fmt` writes for YAML.
 - Cross-document `foo.crv` links rewritten to root-relative `/foo.md`, with
   unresolved targets reported.
 - Local images copied into `assets/` and their paths rewritten.

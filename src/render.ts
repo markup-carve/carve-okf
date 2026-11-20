@@ -1,13 +1,12 @@
+import { parse, type Diagnostic, type DocumentNode } from '@markup-carve/carve';
+import { toMarkdown } from '@markup-carve/carve/export';
 import {
-  parse,
-  resolve,
-  applyProfile,
-  carveToMarkdownWithReport,
-  type ProfileViolation,
-  type RenderLoss,
-  type AnyNode,
-} from '@markup-carve/carve';
-import { okfProfile, type OkfProfileMode } from './profile.js';
+  okfProfile,
+  portabilityViolations,
+  degradeTree,
+  type OkfProfileMode,
+  type PortabilityViolation,
+} from './profile.js';
 
 export interface RenderOptions {
   /** Target Markdown dialect. Default `gfm`. */
@@ -23,63 +22,69 @@ export interface RenderOptions {
 
 export interface RenderedBody {
   markdown: string;
-  /** Non-portable node types, from Carve's feature profile. */
-  violations: ProfileViolation[];
+  /** Non-portable node types, from the OKF portability profile. */
+  violations: PortabilityViolation[];
   /**
-   * Losses the Markdown renderer reported, including dropped raw formats and
-   * refused destinations. The profile reports structural portability separately.
+   * Losses the Markdown writer reported (`render-loss` diagnostics), including
+   * dropped raw formats and refused destinations. The profile reports
+   * structural portability separately.
    */
-  losses: RenderLoss[];
+  losses: Diagnostic[];
 }
 
-// A GFM task-list item is state on `list_item` (`checked`), not a distinct node
-// type, so a profile deny list cannot catch it. `commonmark` mode excludes GFM,
-// so task lists are detected and degraded here instead.
-const TASK_MARKER_RE = /^(\s*[-*+]\s+)\[[ xX]\]\s+/gm;
+type Tree = { type: string; [key: string]: unknown };
 
-function countTaskItems(node: AnyNode | AnyNode[]): number {
-  if (Array.isArray(node)) return node.reduce((n, c) => n + countTaskItems(c), 0);
-  if (!node || typeof node !== 'object') return 0;
-  let count = 0;
-  const rec = node as unknown as Record<string, unknown>;
-  if (rec.type === 'list_item' && typeof rec.checked === 'boolean') count += 1;
-  for (const [k, v] of Object.entries(rec)) {
-    if (k === 'type' || k === 'pos') continue;
-    if (v && typeof v === 'object') count += countTaskItems(v as AnyNode);
+// A task-list item is state on `list_item` (`task`), not a distinct node type,
+// so the profile cannot catch it. `commonmark` mode excludes GFM, so task lists
+// are detected and dropped here instead.
+function stripTasks(node: Tree, found: { count: number }, strip: boolean): Tree {
+  const copy: Tree = { ...node };
+  if (node.type === 'list_item' && node.task) {
+    found.count += 1;
+    if (strip) delete copy.task;
   }
-  return count;
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'pos') continue;
+    if (Array.isArray(value)) {
+      copy[key] = value.map((v) => (v && typeof v === 'object' && 'type' in v ? stripTasks(v as Tree, found, strip) : v));
+    } else if (value && typeof value === 'object' && 'type' in (value as object)) {
+      copy[key] = stripTasks(value as Tree, found, strip);
+    }
+  }
+  return copy;
 }
 
 /**
  * Render a Carve body to Markdown and report its portability.
  *
  * Portability is reported from two independent, complementary sources: the
- * feature profile (structural constructs with no Markdown form) and the
- * renderer's own loss report (content it drops or refuses). Detection
- * and rendering are separate passes so a lenient render keeps full fidelity
- * while still carrying both signals.
+ * portability profile (structural constructs with no Markdown form) and the
+ * writer's own loss report (content it drops or refuses). A lenient render keeps
+ * full fidelity while still carrying both signals.
  */
 export function renderBody(body: string, opts: RenderOptions = {}): RenderedBody {
   const mode = opts.mode ?? 'gfm';
   const profile = okfProfile(mode, 'to_text');
 
-  const detDoc = resolve(parse(body));
-  const taskItems = countTaskItems(detDoc);
-  const { violations } = applyProfile(detDoc, profile);
+  let tree: DocumentNode = parse(body);
+  const violations = portabilityViolations(tree, profile);
 
-  const result = opts.strict
-    ? carveToMarkdownWithReport(body, { profile })
-    : carveToMarkdownWithReport(body);
-  let markdown = result.value;
-
-  if (mode === 'commonmark' && taskItems > 0) {
+  const tasks = { count: 0 };
+  const stripped = stripTasks(tree as unknown as Tree, tasks, mode === 'commonmark' && !!opts.strict);
+  if (mode === 'commonmark' && tasks.count > 0) {
     violations.push({
       nodeType: 'list_item',
       reason: 'element_not_allowed',
       reasonDescription: 'task list (GFM extension) is not portable in commonmark mode',
     });
-    if (opts.strict) markdown = markdown.replace(TASK_MARKER_RE, '$1');
   }
+  if (opts.strict) tree = degradeTree(stripped as unknown as DocumentNode, profile);
 
-  return { markdown, violations, losses: result.losses };
+  const result = toMarkdown(tree);
+  return { markdown: result.output, violations, losses: result.diagnostics };
+}
+
+/** One violation as a line of text, for reports. */
+export function formatViolation(v: PortabilityViolation): string {
+  return v.path === undefined ? `${v.nodeType}: ${v.reasonDescription}` : `${v.nodeType} at ${v.path || '/'}: ${v.reasonDescription}`;
 }
