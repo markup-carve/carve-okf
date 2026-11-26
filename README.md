@@ -10,7 +10,7 @@ Carve is a rich document markup with constructs Markdown has no portable form fo
 node types of the Carve tree rather than a guess, exactly which constructs do not
 survive the trip.
 
-This branch (`next2`) targets Carve 0.2: it depends on carve-js `next2`, pinned by
+This branch (`main`) targets Carve 0.2: it depends on carve-js `main`, pinned by
 commit as a git dependency (`npm install` builds it), and is not released.
 
 ## Install
