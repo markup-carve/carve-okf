@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Breaking
+
+- Port to Carve 0.2: depends on carve-js `next2`, pinned by commit as a git dependency. Markdown comes from `toMarkdown` of `@markup-carve/carve/export`, import from `importDocument` of `@markup-carve/carve/import`.
+- `okfProfile()` returns a carve-okf profile (`isTypeAllowed`); Carve 0.2 has no custom `Profile`. Violations are `PortabilityViolation` objects with the node's `path`; `losses` are 0.2 `render-loss` diagnostics. New exports `portabilityViolations`, `degradeTree` and `formatViolation`.
+- Import writes YAML front matter with a bare `---`, the 0.2 canonical opener, and keeps an HTML comment of Markdown as a raw HTML block.
+- Examples use 0.2 syntax (braced highlight).
+
 ## [0.1.2] - 2026-11-12
 
 Requires the Carve engine 0.1.16. Front matter follows the Carve opener rules, and import writes current canonical Carve.

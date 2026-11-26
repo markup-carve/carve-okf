@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import yaml from 'js-yaml';
-import { migrateMarkdown, type MigrationDiagnostic } from '@markup-carve/carve';
+import { importDocument, type ImportDiagnostic } from '@markup-carve/carve/import';
 import { splitFrontMatter } from './frontmatter.js';
 import { rewriteLinksToCarve } from './links.js';
 import { listMdFiles } from './files.js';
@@ -18,7 +18,7 @@ export interface ImportedConcept {
   file: string;
   slug: string;
   /** Import fidelity diagnostics from the Markdown-to-Carve migration. */
-  diagnostics: MigrationDiagnostic[];
+  diagnostics: ImportDiagnostic[];
   /** `.md` link targets not present in the bundle. */
   unresolvedLinks: string[];
 }
@@ -29,15 +29,15 @@ export interface ImportReport {
 
 function carveFrontMatter(meta: Record<string, unknown>): string {
   if (Object.keys(meta).length === 0) return '';
-  return `---yaml\n${yaml.dump(meta, { lineWidth: -1 }).trimEnd()}\n---\n\n`;
+  return `---\n${yaml.dump(meta, { lineWidth: -1 }).trimEnd()}\n---\n\n`;
 }
 
 /**
  * Import an OKF bundle back into Carve `.crv` documents (the inverse of
  * {@link exportBundle}), preserving the bundle's directory structure.
  *
- * Each concept's Markdown body is migrated to Carve via the engine's own
- * Markdown importer (CommonMark + GFM), its front matter is re-emitted as a
+ * Each concept's Markdown body is imported to Carve via the engine's own
+ * Markdown importer (`importDocument` with `from: 'gfm'`), its front matter is re-emitted as a
  * Carve front-matter block, and `.md` links are rewritten to `.crv`. The
  * reserved `index.md` and `log.md` are skipped unless `includeReserved`.
  */
@@ -54,8 +54,8 @@ export function importBundle(okfDir: string, outDir: string, opts: ImportOptions
     const src = readFileSync(join(okfDir, file), 'utf8');
     const { meta, body } = splitFrontMatter(src, 'markdown');
 
-    const migrated = migrateMarkdown(body);
-    const linked = rewriteLinksToCarve(migrated.value, mdPaths, dir);
+    const imported = importDocument(body, { from: 'gfm' });
+    const linked = rewriteLinksToCarve(imported.source, mdPaths, dir);
     const out = `${carveFrontMatter(meta)}${linked.markdown.trim()}\n`;
     const outPath = join(outDir, `${slug}.crv`);
     mkdirSync(dirname(outPath), { recursive: true });
@@ -64,7 +64,7 @@ export function importBundle(okfDir: string, outDir: string, opts: ImportOptions
     concepts.push({
       file,
       slug,
-      diagnostics: migrated.report.diagnostics,
+      diagnostics: imported.diagnostics,
       unresolvedLinks: linked.unresolved,
     });
   }

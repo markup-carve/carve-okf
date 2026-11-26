@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { renderBody } from './render.js';
 
+// Upgraded to 0.2: bare highlight and underline take braces (U-067, U-065).
 const SAMPLE = `# Title
 
 ::: note
-Config is =case-sensitive=.
+Config is {=case-sensitive=}.
 :::
 
-H{,2,}O and 10{^th^} and _under_ and *bold*.
+H{,2,}O and 10{^th^} and {_under_} and *bold*.
 `;
 
 describe('renderBody', () => {
@@ -45,7 +46,8 @@ describe('renderBody', () => {
     // The renderer drops the latex content...
     expect(markdown).not.toContain('foo');
     // ...but it is no longer silent: reported as a raw-format loss.
-    expect(losses.some((l) => l.code === 'raw-format-dropped' && l.format === 'latex')).toBe(true);
+    // A 0.2 loss is a render-loss diagnostic with code, message and path; it names the format in its message (C2-A-173).
+    expect(losses.some((l) => l.code === 'raw-format-dropped' && l.message.includes('"latex"'))).toBe(true);
   });
 
   it('passes through a refused destination from the renderer loss report', () => {

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { formatProfileViolation } from '@markup-carve/carve';
 import { exportBundle, type ExportOptions } from './bundle.js';
 import { importBundle, type ImportOptions } from './import.js';
 import { validateBundle } from './validate.js';
+import { formatViolation } from './render.js';
 import type { OkfProfileMode } from './profile.js';
 
 const USAGE = `carve-okf - convert between Carve documents and Open Knowledge Format bundles
@@ -69,7 +69,7 @@ function runExport(argv: string[]): void {
     if (!c.violations.length && !c.losses.length && !c.unresolvedLinks.length && !c.assetsMissing.length && !c.diagrams.length) {
       w('  portable: no non-portable constructs');
     }
-    for (const v of c.violations) w(`  - not portable: ${formatProfileViolation(v)}`);
+    for (const v of c.violations) w(`  - not portable: ${formatViolation(v)}`);
     for (const l of c.losses) w(`  - dropped: ${l.message}`);
     for (const href of c.unresolvedLinks) w(`  - unresolved internal link: ${href}`);
     for (const m of c.assetsMissing) w(`  - missing asset: ${m}`);
@@ -99,7 +99,7 @@ function runImport(argv: string[]): void {
   for (const c of report.concepts) {
     w(`\n[${c.file}] -> ${c.slug}.crv`);
     if (!c.diagnostics.length && !c.unresolvedLinks.length) w('  imported cleanly');
-    for (const d of c.diagnostics) w(`  - ${d.fidelity}: ${d.message}`);
+    for (const d of c.diagnostics) w(`  - ${d.severity} ${d.code}: ${d.message}`);
     for (const href of c.unresolvedLinks) w(`  - unresolved link: ${href}`);
   }
   w(`\nWrote ${report.concepts.length} Carve file(s) to ${positional[1]}/`);
